@@ -51,9 +51,10 @@ func (b *Batching) Run() chan []interface{} {
 					batch = append(batch, data)
 				}
 				timer.Reset(b.maxTime)
-				batches <- batch
-				batch = []interface{}{}
-
+				if len(batch) > 0 {
+					batches <- batch
+					batch = []interface{}{}
+				}
 			//Data full capacity making batch
 			case b.isFullChan <- struct {}{}:
 				if len(b.dataChan) == cap(b.dataChan) {
