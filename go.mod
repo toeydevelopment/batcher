@@ -1,3 +1,3 @@
-module github.com/new-fg/batcher
+module github.com/toeydevelopment/batcher
 
-go 1.15
+go 1.18

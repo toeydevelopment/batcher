@@ -4,35 +4,35 @@ import (
 	"time"
 )
 
-type Batcher interface {
-	Add(data interface{})
+type Batcher[T any] interface {
+	Add(data T)
 	Run()
-	GetBatches() <-chan []interface{}
+	GetBatches() <-chan []T
 	Stop()
 }
-type batcher struct {
-	dataChan        chan interface{}
+type batcher[T any] struct {
+	dataChan        chan T
 	isFullChan      chan struct{}
-	batches         chan []interface{}
-	isTerminateChan chan interface{}
+	batches         chan []T
+	isTerminateChan chan struct{}
 	maxTime         time.Duration
 	maxItems        int
 	keepGoing       bool
 }
 
-func New(maxTime time.Duration, maxItems int) Batcher {
-	return &batcher{
-		dataChan:        make(chan interface{}, maxItems),
+func New[T any](maxTime time.Duration, maxItems int) Batcher[T] {
+	return &batcher[T]{
+		dataChan:        make(chan T, maxItems),
 		isFullChan:      make(chan struct{}, 1),
-		batches:         make(chan []interface{}, 1),
-		isTerminateChan: make(chan interface{}, 1),
+		batches:         make(chan []T, 1),
+		isTerminateChan: make(chan struct{}, 1),
 		maxTime:         maxTime,
 		maxItems:        maxItems,
 		keepGoing:       true,
 	}
 }
 
-func (b *batcher) Add(data interface{}) {
+func (b *batcher[T]) Add(data T) {
 	//add data to data channel
 	//Send signal when data reach full capacity for batching immediately
 	if len(b.dataChan) < b.maxItems {
@@ -41,24 +41,23 @@ func (b *batcher) Add(data interface{}) {
 			<-b.isFullChan
 		}
 
-	}else if len(b.dataChan) == b.maxItems {
+	} else if len(b.dataChan) == b.maxItems {
 		<-b.isFullChan
 		b.dataChan <- data
 	}
 }
 
-func (b *batcher) Stop() {
+func (b *batcher[T]) Stop() {
 	//Send signal for close all opened channels
 	b.isTerminateChan <- struct{}{}
 }
 
-
-func (b *batcher) GetBatches() <-chan []interface{} {
+func (b *batcher[T]) GetBatches() <-chan []T {
 	//Channel for delivery batch
 	return b.batches
 }
 
-func (b *batcher) Run() {
+func (b *batcher[T]) Run() {
 	go func() {
 		// Timer for create batch if data not reach max items
 		timer := time.NewTimer(b.maxTime)
@@ -73,13 +72,13 @@ func (b *batcher) Run() {
 				b.terminateChan()
 			//Data full capacity making batch
 			case b.isFullChan <- struct{}{}:
-					b.processBatch(timer)
+				b.processBatch(timer)
 			}
 		}
 	}()
 }
 
-func (b *batcher) terminateChan() {
+func (b *batcher[T]) terminateChan() {
 	b.keepGoing = false
 	close(b.dataChan)
 	close(b.isFullChan)
@@ -87,8 +86,9 @@ func (b *batcher) terminateChan() {
 	close(b.batches)
 }
 
-func (b *batcher) processBatch(timer *time.Timer)  {
-	var batch []interface{}
+func (b *batcher[T]) processBatch(timer *time.Timer) {
+	var batch []T
+
 	currentLenChan := len(b.dataChan)
 	for i := 0; i < currentLenChan; i++ {
 		data := <-b.dataChan

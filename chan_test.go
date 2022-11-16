@@ -1,15 +1,16 @@
 package batcher_test
 
 import (
-	"github.com/new-fg/batcher"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/toeydevelopment/batcher"
 )
 
 func BenchmarkStructChan(b *testing.B) {
 	wg := sync.WaitGroup{}
-	_batcher := batcher.New(time.Second*15, 5)
+	_batcher := batcher.New[int](time.Second*15, 5)
 	//Chan to receive batch
 	_batcher.Run()
 	batches := _batcher.GetBatches()
@@ -18,7 +19,7 @@ func BenchmarkStructChan(b *testing.B) {
 	go func() {
 		defer wg.Done()
 		//start := time.Now()
-		for  range batches {
+		for range batches {
 			//fmt.Println(time.Now().Sub(start), batch)
 		}
 	}()
